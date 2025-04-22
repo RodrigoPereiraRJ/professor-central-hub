@@ -1,11 +1,45 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import Header from '@/components/Header';
+import QuickActions from '@/components/QuickActions';
+import WeeklySchedule from '@/components/WeeklySchedule';
+import ClassOverview from '@/components/ClassOverview';
+import StudentPerformance from '@/components/StudentPerformance';
+import RecentSubmissions from '@/components/RecentSubmissions';
+import SchoolAnnouncements from '@/components/SchoolAnnouncements';
+import ActivityHistory from '@/components/ActivityHistory';
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="flex-grow p-6">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold mb-6">Painel de Controle</h1>
+          
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <QuickActions />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <WeeklySchedule />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <ClassOverview />
+            <StudentPerformance />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <RecentSubmissions />
+            <SchoolAnnouncements />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6">
+            <ActivityHistory />
+          </div>
+        </div>
       </div>
     </div>
   );
