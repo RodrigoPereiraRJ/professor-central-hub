@@ -1,4 +1,3 @@
-
 import React from 'react';
 import Header from '@/components/Header';
 import QuickActions from '@/components/QuickActions';
@@ -9,6 +8,7 @@ import RecentSubmissions from '@/components/RecentSubmissions';
 import SchoolAnnouncements from '@/components/SchoolAnnouncements';
 // Removidos os imports dos componentes de frequência e atividades recentes
 import StudentAttendanceRegistration from '@/components/StudentAttendanceRegistration';
+import AllStudentsList from '@/components/AllStudentsList';
 
 const Index = () => {
   return (
@@ -30,6 +30,9 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Somente o componente de cadastro/consulta e frequência do aluno */}
             <StudentAttendanceRegistration />
+          </div>
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <AllStudentsList />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <SchoolAnnouncements />
