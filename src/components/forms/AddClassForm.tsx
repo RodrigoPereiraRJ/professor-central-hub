@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
+import { ClassData } from '@/components/ClassOverview';
 
 const classFormSchema = z.object({
   name: z.string().min(1, 'Nome da turma é obrigatório'),
@@ -16,7 +17,11 @@ const classFormSchema = z.object({
 
 type ClassFormValues = z.infer<typeof classFormSchema>;
 
-export function AddClassForm() {
+interface AddClassFormProps {
+  onAddClass?: (classData: Omit<ClassData, 'id'>) => void;
+}
+
+export function AddClassForm({ onAddClass }: AddClassFormProps) {
   const { toast } = useToast();
   const form = useForm<ClassFormValues>({
     resolver: zodResolver(classFormSchema),
@@ -28,12 +33,33 @@ export function AddClassForm() {
   });
 
   function onSubmit(data: ClassFormValues) {
-    // Here you would integrate with your backend
-    console.log('Class data:', data);
+    const newClass = {
+      ...data,
+      students: 0,
+      gradesPercentage: 0,
+      attendancePercentage: 0,
+      hasPendingActivities: false
+    };
+    
+    // Se houver callback, chama-o
+    if (onAddClass) {
+      onAddClass(newClass);
+    } else {
+      // Se não, salva diretamente no localStorage
+      const storedClasses = localStorage.getItem('classes');
+      const classes = storedClasses ? JSON.parse(storedClasses) : [];
+      classes.push({
+        ...newClass,
+        id: Date.now().toString()
+      });
+      localStorage.setItem('classes', JSON.stringify(classes));
+    }
+    
     toast({
       title: "Turma criada com sucesso!",
       description: `${data.name} foi adicionada ao sistema.`,
     });
+    
     form.reset();
   }
 

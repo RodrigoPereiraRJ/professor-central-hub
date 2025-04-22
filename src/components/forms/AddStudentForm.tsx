@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
+import { Student } from '@/components/StudentPerformance';
 
 const studentFormSchema = z.object({
   name: z.string().min(1, 'Nome do aluno é obrigatório'),
@@ -16,7 +17,11 @@ const studentFormSchema = z.object({
 
 type StudentFormValues = z.infer<typeof studentFormSchema>;
 
-export function AddStudentForm() {
+interface AddStudentFormProps {
+  onAddStudent?: (student: Student) => void;
+}
+
+export function AddStudentForm({ onAddStudent }: AddStudentFormProps) {
   const { toast } = useToast();
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -28,12 +33,28 @@ export function AddStudentForm() {
   });
 
   function onSubmit(data: StudentFormValues) {
-    // Here you would integrate with your backend
-    console.log('Student data:', data);
+    const newStudent = {
+      id: Date.now().toString(),
+      ...data,
+      attendance: 0,
+    };
+    
+    // Se houver callback, chama-o
+    if (onAddStudent) {
+      onAddStudent(newStudent);
+    } else {
+      // Se não, salva diretamente no localStorage
+      const storedStudents = localStorage.getItem('students');
+      const students = storedStudents ? JSON.parse(storedStudents) : [];
+      students.push(newStudent);
+      localStorage.setItem('students', JSON.stringify(students));
+    }
+    
     toast({
       title: "Aluno adicionado com sucesso!",
       description: `${data.name} foi adicionado à turma ${data.class}.`,
     });
+    
     form.reset();
   }
 

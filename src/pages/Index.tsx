@@ -8,6 +8,7 @@ import StudentPerformance from '@/components/StudentPerformance';
 import RecentSubmissions from '@/components/RecentSubmissions';
 import SchoolAnnouncements from '@/components/SchoolAnnouncements';
 import ActivityHistory from '@/components/ActivityHistory';
+import AttendanceRegistration from '@/components/AttendanceRegistration';
 
 const Index = () => {
   return (
@@ -32,8 +33,12 @@ const Index = () => {
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <RecentSubmissions />
+            <AttendanceRegistration />
             <SchoolAnnouncements />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <RecentSubmissions />
           </div>
           
           <div className="grid grid-cols-1 gap-6">

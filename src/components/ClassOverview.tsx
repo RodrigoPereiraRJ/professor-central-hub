@@ -1,26 +1,55 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import DashboardCard from './ui/DashboardCard';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus } from 'lucide-react';
+import { Users, Plus, BookOpen } from 'lucide-react';
 import { AddClassForm } from './forms/AddClassForm';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AlertCircle, ChevronRight } from 'lucide-react';
 import ClassDetailsPanel from './ClassDetailsPanel';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "./ui/table";
 
-interface ClassData {
+export interface ClassData {
   id: string;
   name: string;
-  students: number;
-  gradesPercentage: number;
-  attendancePercentage: number;
-  hasPendingActivities: boolean;
+  subject: string;
+  period: string;
+  students?: number;
+  gradesPercentage?: number;
+  attendancePercentage?: number;
+  hasPendingActivities?: boolean;
 }
 
 const ClassOverview = () => {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  useEffect(() => {
+    // Recuperar classes do localStorage
+    const storedClasses = localStorage.getItem('classes');
+    if (storedClasses) {
+      setClasses(JSON.parse(storedClasses));
+    }
+  }, []);
+
+  const handleAddClass = (newClass: Omit<ClassData, 'id'>) => {
+    const classData: ClassData = {
+      ...newClass,
+      id: Date.now().toString(),
+      students: 0,
+      gradesPercentage: 0,
+      attendancePercentage: 0,
+      hasPendingActivities: false
+    };
+    
+    const updatedClasses = [...classes, classData];
+    setClasses(updatedClasses);
+    
+    // Salvar no localStorage
+    localStorage.setItem('classes', JSON.stringify(updatedClasses));
+  };
 
   const handleClassClick = (classData: ClassData) => {
     setSelectedClass(classData);
@@ -50,7 +79,7 @@ const ClassOverview = () => {
               <SheetTitle>Adicionar Nova Turma</SheetTitle>
             </SheetHeader>
             <div className="mt-4">
-              <AddClassForm />
+              <AddClassForm onAddClass={handleAddClass} />
             </div>
           </SheetContent>
         </Sheet>
@@ -64,70 +93,29 @@ const ClassOverview = () => {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2 px-2 font-medium">Turma</th>
-                <th className="text-center py-2 px-2 font-medium">Alunos</th>
-                <th className="text-center py-2 px-2 font-medium">Notas</th>
-                <th className="text-center py-2 px-2 font-medium">Frequência</th>
-                <th className="text-center py-2 px-2 font-medium">Status</th>
-                <th className="text-right py-2 px-2 font-medium">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Turma</TableHead>
+                <TableHead>Disciplina</TableHead>
+                <TableHead>Período</TableHead>
+                <TableHead>Alunos</TableHead>
+                <TableHead className="text-right">Ação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {classes.map((classData) => (
-                <tr key={classData.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-2">{classData.name}</td>
-                  <td className="py-3 px-2 text-center">
-                    <div className="flex items-center justify-center">
+                <TableRow key={classData.id}>
+                  <TableCell className="font-medium">{classData.name}</TableCell>
+                  <TableCell>{classData.subject}</TableCell>
+                  <TableCell>{classData.period}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
                       <Users size={16} className="mr-1 text-gray-500" />
-                      {classData.students}
+                      {classData.students || 0}
                     </div>
-                  </td>
-                  <td className="py-3 px-2">
-                    <div className="flex items-center justify-center">
-                      <div className="w-full max-w-[100px] bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            classData.gradesPercentage === 100 
-                              ? 'bg-green-500' 
-                              : classData.gradesPercentage >= 70 
-                                ? 'bg-dashboard-blue' 
-                                : 'bg-yellow-500'
-                          }`} 
-                          style={{ width: `${classData.gradesPercentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="ml-2 text-sm">{classData.gradesPercentage}%</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2">
-                    <div className="flex items-center justify-center">
-                      <div className="w-full max-w-[100px] bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            classData.attendancePercentage >= 90 
-                              ? 'bg-green-500' 
-                              : classData.attendancePercentage >= 70 
-                                ? 'bg-dashboard-blue' 
-                                : 'bg-yellow-500'
-                          }`} 
-                          style={{ width: `${classData.attendancePercentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="ml-2 text-sm">{classData.attendancePercentage}%</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2 text-center">
-                    {classData.hasPendingActivities && (
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                        <AlertCircle size={14} className="mr-1" />
-                        Pendências
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="py-3 px-2 text-right">
+                  </TableCell>
+                  <TableCell className="text-right">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -136,11 +124,11 @@ const ClassOverview = () => {
                       <span className="mr-1">Detalhes</span>
                       <ChevronRight size={16} />
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </DashboardCard>
