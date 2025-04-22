@@ -1,9 +1,11 @@
-
 import React, { useState } from 'react';
 import DashboardCard from './ui/DashboardCard';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, ChevronRight, Users } from 'lucide-react';
+import { Users, Plus } from 'lucide-react';
+import { AddClassForm } from './forms/AddClassForm';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { AlertCircle, ChevronRight } from 'lucide-react';
 import ClassDetailsPanel from './ClassDetailsPanel';
 
 interface ClassData {
@@ -16,36 +18,9 @@ interface ClassData {
 }
 
 const ClassOverview = () => {
+  const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-
-  // Sample data - in a real app this would come from an API
-  const classes: ClassData[] = [
-    { 
-      id: '1', 
-      name: '9º Ano A - Matemática', 
-      students: 32, 
-      gradesPercentage: 75, 
-      attendancePercentage: 90,
-      hasPendingActivities: true
-    },
-    { 
-      id: '2', 
-      name: '8º Ano B - Matemática', 
-      students: 28, 
-      gradesPercentage: 100, 
-      attendancePercentage: 95,
-      hasPendingActivities: false
-    },
-    { 
-      id: '3', 
-      name: '7º Ano C - Matemática', 
-      students: 30, 
-      gradesPercentage: 60, 
-      attendancePercentage: 80,
-      hasPendingActivities: true
-    }
-  ];
 
   const handleClassClick = (classData: ClassData) => {
     setSelectedClass(classData);
@@ -58,7 +33,36 @@ const ClassOverview = () => {
 
   return (
     <>
-      <DashboardCard title="Resumo de Turmas">
+    <DashboardCard 
+      title="Resumo de Turmas"
+      headerClassName="flex justify-between items-center"
+    >
+      <div className="flex justify-between items-center pb-4">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button>
+              <Plus size={16} className="mr-2" />
+              Adicionar Turma
+            </Button>
+          </SheetTrigger>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Adicionar Nova Turma</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <AddClassForm />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {classes.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <Users size={48} className="mx-auto mb-4 opacity-50" />
+          <p>Nenhuma turma cadastrada</p>
+          <p className="text-sm">Clique em "Adicionar Turma" para começar</p>
+        </div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -138,7 +142,8 @@ const ClassOverview = () => {
             </tbody>
           </table>
         </div>
-      </DashboardCard>
+      )}
+    </DashboardCard>
 
       {selectedClass && (
         <ClassDetailsPanel 
