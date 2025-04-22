@@ -19,6 +19,7 @@ interface ScheduleItemProps {
   subject: string;
   class: string;
   school: string;
+  description: string;
   hasAlert?: boolean;
   alertType?: "attendance" | "grades" | "material";
 }
@@ -44,6 +45,7 @@ const ScheduleItem = ({
   subject, 
   class: className, 
   school,
+  description,
   hasAlert, 
   alertType,
   onDelete 
@@ -55,6 +57,7 @@ const ScheduleItem = ({
         <div className="font-medium">{subject}</div>
         <div className="text-sm text-gray-500">{className}</div>
         <div className="text-xs text-gray-400">{school}</div>
+        <div className="text-xs text-gray-800 mt-1 italic">{description}</div>
         {hasAlert && alertType && (
           <Badge variant="outline" className={`mt-1 ${alertTypes[alertType].color}`}>
             {alertTypes[alertType].text}
@@ -95,7 +98,7 @@ const WeekDayColumn = ({
   onDelete?: (id: string) => void 
 }) => {
   return (
-    <div className="flex-1 min-w-[200px]">
+    <div className="flex-1 min-w-[230px]">
       <div className="text-center mb-2">
         <div className="font-medium">{day}</div>
         <div className="text-sm text-gray-500">{date}</div>
@@ -115,23 +118,21 @@ const WeekDayColumn = ({
 };
 
 const scheduleFormSchema = z.object({
-  day: z.string({
-    required_error: "Selecione um dia da semana",
-  }),
+  day: z.string({ required_error: "Selecione um dia da semana" }),
   time: z.string().min(1, 'Horário é obrigatório'),
   subject: z.string().min(1, 'Disciplina é obrigatória'),
   class: z.string().min(1, 'Turma é obrigatória'),
   school: z.string().min(1, 'Escola é obrigatória'),
+  description: z.string().min(1, "Descrição da aula é obrigatória"),
   hasAlert: z.boolean().optional(),
   alertType: z.enum(["attendance", "grades", "material"]).optional(),
 });
 
 type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
 
-// Função para obter a data formatada
 const getFormattedDate = (dayOffset: number) => {
   const date = new Date();
-  date.setDate(date.getDate() - date.getDay() + 1 + dayOffset); // Segunda = 1, Terça = 2, etc.
+  date.setDate(date.getDate() - date.getDay() + 1 + dayOffset);
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 };
 
@@ -144,14 +145,14 @@ const WeeklySchedule = () => {
     quinta: [],
     sexta: [],
   });
-  
+
   useEffect(() => {
     const storedSchedule = localStorage.getItem('weeklySchedule');
     if (storedSchedule) {
       setSchedule(JSON.parse(storedSchedule));
     }
   }, []);
-  
+
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues: {
@@ -160,45 +161,46 @@ const WeeklySchedule = () => {
       subject: '',
       class: '',
       school: '',
+      description: '',
       hasAlert: false,
     },
   });
-  
+
   const onSubmit = (data: ScheduleFormValues) => {
     const { day, ...itemData } = data;
-    
+
     const newItem: ScheduleItemProps = {
       id: Date.now().toString(),
       ...itemData,
     };
-    
+
     const updatedSchedule = {
       ...schedule,
       [day]: [...(schedule[day] || []), newItem],
     };
-    
+
     setSchedule(updatedSchedule);
     localStorage.setItem('weeklySchedule', JSON.stringify(updatedSchedule));
-    
+
     toast({
       title: "Aula agendada!",
-      description: `${data.subject} para ${data.class} foi agendada para ${weekDays.find(d => d.value === day)?.label}.`,
+      description: `${data.subject} (${data.description}) para ${data.class} foi agendada para ${weekDays.find(d => d.value === day)?.label}.`,
     });
-    
+
     form.reset();
   };
-  
+
   const handleDeleteScheduleItem = (day: string, id: string) => {
     const updatedDaySchedule = schedule[day].filter(item => item.id !== id);
-    
+
     const updatedSchedule = {
       ...schedule,
       [day]: updatedDaySchedule,
     };
-    
+
     setSchedule(updatedSchedule);
     localStorage.setItem('weeklySchedule', JSON.stringify(updatedSchedule));
-    
+
     toast({
       title: "Aula removida!",
       description: "A aula foi removida da agenda.",
@@ -206,8 +208,8 @@ const WeeklySchedule = () => {
   };
 
   return (
-    <DashboardCard 
-      title="Agenda da Semana" 
+    <DashboardCard
+      title="Agenda da Semana"
       headerClassName="flex items-center justify-between"
       contentClassName="overflow-x-auto"
     >
@@ -232,8 +234,8 @@ const WeeklySchedule = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Dia da Semana</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
+                        <Select
+                          onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
@@ -251,7 +253,6 @@ const WeeklySchedule = () => {
                       </FormItem>
                     )}
                   />
-                  
                   <FormField
                     control={form.control}
                     name="time"
@@ -265,7 +266,6 @@ const WeeklySchedule = () => {
                       </FormItem>
                     )}
                   />
-                  
                   <FormField
                     control={form.control}
                     name="subject"
@@ -279,7 +279,6 @@ const WeeklySchedule = () => {
                       </FormItem>
                     )}
                   />
-                  
                   <FormField
                     control={form.control}
                     name="class"
@@ -293,7 +292,6 @@ const WeeklySchedule = () => {
                       </FormItem>
                     )}
                   />
-                  
                   <FormField
                     control={form.control}
                     name="school"
@@ -307,7 +305,19 @@ const WeeklySchedule = () => {
                       </FormItem>
                     )}
                   />
-                  
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descrição da aula</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Resumo, tema ou objetivo da aula" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="hasAlert"
@@ -327,7 +337,6 @@ const WeeklySchedule = () => {
                       </FormItem>
                     )}
                   />
-                  
                   {form.watch('hasAlert') && (
                     <FormField
                       control={form.control}
@@ -335,8 +344,8 @@ const WeeklySchedule = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Tipo de Alerta</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
+                          <Select
+                            onValueChange={field.onChange}
                             defaultValue={field.value}
                           >
                             <FormControl>
@@ -355,7 +364,6 @@ const WeeklySchedule = () => {
                       )}
                     />
                   )}
-                  
                   <Button type="submit" className="w-full">
                     Adicionar Aula
                   </Button>
@@ -365,13 +373,12 @@ const WeeklySchedule = () => {
           </SheetContent>
         </Sheet>
       </div>
-
       <div className="flex space-x-2 overflow-x-auto pb-2">
         {weekDays.map((day, index) => (
-          <WeekDayColumn 
-            key={day.value} 
-            day={day.label} 
-            date={getFormattedDate(index)} 
+          <WeekDayColumn
+            key={day.value}
+            day={day.label}
+            date={getFormattedDate(index)}
             items={schedule[day.value] || []}
             onDelete={(id) => handleDeleteScheduleItem(day.value, id)}
           />
