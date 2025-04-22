@@ -16,9 +16,10 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogTrigger,
+  AlertDialogCancel
 } from "@/components/ui/alert-dialog";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas"; // para exportar o calendário
 
 const daysOptions = [
   { label: "Segunda", value: 1 },
@@ -62,18 +63,37 @@ interface RegisteredStudent {
   school: string;
   class: string;
   teachingDays: number[];
-  attendance: string[];
+  attendance: { date: string; type: "presenca" | "falta" }[];
 }
 
 type PanelMode = "initial" | "register" | "duplicateModal" | "viewAttendance";
+
+// --- AJUDARES PARA PDF ---
+async function exportAttendanceToPDF(ref: HTMLElement, student: RegisteredStudent, presencas: number, faltas: number) {
+  const canvas = await html2canvas(ref);
+  const imgData = canvas.toDataURL("image/png");
+
+  const pdf = new jsPDF('p', 'mm', "a4");
+  // Titulos
+  pdf.setFontSize(16);
+  pdf.text(`Frequência de ${student.name}`, 15, 15);
+  pdf.setFontSize(12);
+  pdf.text(`Matrícula: ${student.registration}`, 15, 25);
+  pdf.text(`Turma: ${student.class}`, 15, 32);
+  pdf.text(`Período: ${format(new Date(), "MMMM yyyy", { locale: ptBR })}`, 15, 39);
+  pdf.text(`Presenças: ${presencas}   Faltas: ${faltas}`, 15, 46);
+  pdf.addImage(imgData, 'PNG', 15, 50, 180, 80);
+  pdf.save(`frequencia_${student.registration}.pdf`);
+}
 
 export default function StudentAttendanceRegistration() {
   const { toast } = useToast();
   const [mode, setMode] = useState<PanelMode>("initial");
   const [foundStudent, setFoundStudent] = useState<RegisteredStudent | null>(null);
-  const [attendanceDraft, setAttendanceDraft] = useState<string[]>([]);
+  const [attendanceDraft, setAttendanceDraft] = useState<{ date: string; type: "presenca" | "falta" }[]>([]);
   const [registrationInput, setRegistrationInput] = useState<string>("");
-  const pendingFormDataRef = useRef<StudentAttendanceFormValues | null>(null); // para guardar tentativa de novo cadastro
+  const pendingFormDataRef = useRef<StudentAttendanceFormValues | null>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Formulário para cadastro de novo aluno
   const registerForm = useForm<StudentAttendanceFormValues>({
@@ -93,23 +113,19 @@ export default function StudentAttendanceRegistration() {
     },
   });
 
-  // --- Lógica de busca em storage
   function findStudentByRegistration(mat: string): RegisteredStudent | undefined {
     const alunos = JSON.parse(localStorage.getItem("alunosDashboard") || "[]");
     return alunos.find((stu: RegisteredStudent) => stu.registration === mat);
   }
 
-  // --- SUBMISSÃO DO FORMULÁRIO DE CADASTRO ---
   function handleRegister(data: StudentAttendanceFormValues) {
-    // Checagem automática de matrícula duplicada
     const cadastroExistente = findStudentByRegistration(data.registration);
     if (cadastroExistente) {
-      pendingFormDataRef.current = data; // salva tentativa, pode ser útil depois
+      pendingFormDataRef.current = data;
       setFoundStudent(cadastroExistente);
-      setMode("duplicateModal"); // aciona modal
+      setMode("duplicateModal");
       return;
     }
-    // Normal: salva novo aluno
     const aluno: RegisteredStudent = {
       ...data,
       id: Date.now().toString(),
@@ -128,7 +144,6 @@ export default function StudentAttendanceRegistration() {
     registerForm.reset();
   }
 
-  // --- SUBMISSÃO FORMULÁRIO CONSULTA ---
   function handleSearchAttendance(data: { registration: string }) {
     const aluno = findStudentByRegistration(data.registration.trim());
     if (!aluno) {
@@ -146,10 +161,8 @@ export default function StudentAttendanceRegistration() {
     setMode("viewAttendance");
   }
 
-  // --- Atualizar frequência e salvar ---
   function handleSaveAttendance() {
     if (!foundStudent) return;
-    // Atualiza storage
     const alunos = JSON.parse(localStorage.getItem("alunosDashboard") || "[]") as RegisteredStudent[];
     const idx = alunos.findIndex(stu => stu.id === foundStudent.id);
     if (idx >= 0) {
@@ -159,12 +172,10 @@ export default function StudentAttendanceRegistration() {
         title: "Frequência salva!",
         description: `${foundStudent.name} (${foundStudent.registration}) teve presença salva.`,
       });
-      // Atualiza state para refletir mudanças
       setFoundStudent(alunos[idx]);
     }
   }
 
-  // --- Monitoramento em tempo real do campo matrícula no cadastro para verificação ---
   function handleRegistrationInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     registerForm.setValue("registration", value);
@@ -180,8 +191,8 @@ export default function StudentAttendanceRegistration() {
     }
   }
 
-  // --- Renderização do calendário interativo ---
-  function renderAttendanceCalendar(student: RegisteredStudent, localAttendance: string[], setLocalAttendance: (v: string[]) => void, allowEdit = true) {
+  // Renderização do calendário interativo ajustado para PRESENÇA/FALTA (verde/vermelho)
+  function renderAttendanceCalendar(student: RegisteredStudent, localAttendance: { date: string; type: "presenca" | "falta" }[], setLocalAttendance: (v: { date: string; type: "presenca" | "falta" }[]) => void, allowEdit = true) {
     const monthWorkingDates = getWorkingDatesOfMonth(student.teachingDays);
 
     // Organiza por semanas
@@ -205,16 +216,28 @@ export default function StudentAttendanceRegistration() {
       return isBefore(date, today) || isToday(date);
     }
 
-    function togglePresence(date: Date) {
+    function togglePresenceType(date: Date) {
       if (!allowEdit) return;
       const iso = date.toISOString().slice(0, 10);
       if (!isPastOrToday(date)) return;
-      setLocalAttendance((prev) =>
-        prev.includes(iso) ? prev.filter((d) => d !== iso) : [...prev, iso]);
+      const index = localAttendance.findIndex(a => a.date === iso);
+      let newValue: { date: string; type: "presenca" | "falta" }[] = [];
+      if (index === -1) {
+        newValue = [...localAttendance, { date: iso, type: "presenca" }];
+      } else if (localAttendance[index].type === "presenca") {
+        // torna falta
+        newValue = localAttendance.map((a, i) =>
+          i === index ? { ...a, type: "falta" } : a
+        );
+      } else {
+        // remove
+        newValue = localAttendance.filter((a, i) => i !== index);
+      }
+      setLocalAttendance(newValue);
     }
 
     return (
-      <div>
+      <div ref={calendarRef}>
         <div className="mb-4">
           <div className="flex gap-2 text-sm mb-2 text-muted-foreground">
             {Object.values(dayIndexToName).map(day => (
@@ -227,16 +250,21 @@ export default function StudentAttendanceRegistration() {
                 const dia = dias.find(d => getDay(d) === idx);
                 if (!dia) return <div className="flex-1 h-10" key={idx}></div>;
                 const iso = dia.toISOString().slice(0,10);
-                const marcado = localAttendance.includes(iso);
+                const registro = localAttendance.find(a => a.date === iso);
+                const marcado = !!registro;
+                const falta = registro?.type === "falta";
+                const presenca = registro?.type === "presenca";
                 const blocked = !isPastOrToday(dia) || !allowEdit;
                 return (
                   <button
                     key={iso}
                     type="button"
-                    onClick={() => togglePresence(dia)}
+                    onClick={() => togglePresenceType(dia)}
                     disabled={blocked}
                     className={`flex-1 rounded p-2 h-10 border text-sm transition-colors
-                      ${marcado ? "bg-green-500 text-white border-green-600" : "bg-white border-gray-300"}
+                      ${presenca ? "bg-green-500 text-white border-green-600" : ""}
+                      ${falta ? "bg-red-500 text-white border-red-600" : ""}
+                      ${!marcado && !blocked ? "bg-white border-gray-300" : ""}
                       ${blocked ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}
                     `}
                     title={format(dia, "EEEE',' dd/MM/yyyy", { locale: ptBR })}
@@ -248,8 +276,9 @@ export default function StudentAttendanceRegistration() {
             </div>
           ))}
           <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500 inline-block mr-1"></div> Presença registrada |
-            <div className="w-4 h-4 rounded border border-gray-300 bg-white inline-block ml-2 mr-1"></div> Não marcado |
+            <div className="w-4 h-4 rounded bg-green-500 inline-block mr-1"></div> Presença &nbsp;|&nbsp;
+            <div className="w-4 h-4 rounded bg-red-500 inline-block mr-1"></div> Falta &nbsp;|&nbsp;
+            <div className="w-4 h-4 rounded border border-gray-300 bg-white inline-block ml-2 mr-1"></div> Não marcado &nbsp;|&nbsp;
             <div className="w-4 h-4 rounded border bg-gray-100 opacity-30 inline-block ml-2 mr-1"></div> Futuro/bloqueado
           </div>
         </div>
@@ -260,6 +289,20 @@ export default function StudentAttendanceRegistration() {
         )}
       </div>
     );
+  }
+
+  // Totais de presença/falta baseado no attendanceDraft
+  function getTotals(teachingDays: number[], attendanceArr: { date: string; type: "presenca" | "falta" }[]) {
+    const validDays = getWorkingDatesOfMonth(teachingDays)
+      .map(date => date.toISOString().slice(0, 10));
+    let presencas = 0;
+    let faltas = 0;
+    validDays.forEach(d => {
+      const reg = attendanceArr.find(a => a.date === d);
+      if (reg?.type === "presenca") presencas +=1;
+      else if (reg?.type === "falta") faltas +=1;
+    });
+    return { presencas, faltas, total: validDays.length };
   }
 
   // --- Painel principal por modo ---
@@ -404,7 +447,6 @@ export default function StudentAttendanceRegistration() {
       );
       break;
     case "duplicateModal":
-      // Modal de duplicidade
       content = (
         <AlertDialog open={true}>
           <AlertDialogContent>
@@ -423,7 +465,6 @@ export default function StudentAttendanceRegistration() {
               }}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  // Vai para painel de frequência daquele aluno
                   setMode("viewAttendance");
                   setAttendanceDraft(foundStudent?.attendance || []);
                 }}
@@ -446,6 +487,8 @@ export default function StudentAttendanceRegistration() {
           </div>
         );
       } else {
+        // Cálculo de totais
+        const { presencas, faltas, total } = getTotals(foundStudent.teachingDays, attendanceDraft);
         content = (
           <div>
             <div className="mb-4 grid md:grid-cols-2 gap-2">
@@ -459,12 +502,31 @@ export default function StudentAttendanceRegistration() {
                 </div>
                 <div className="text-sm text-muted-foreground">Escola: {foundStudent.school}</div>
               </div>
-              <div className="flex items-end justify-end">
+              <div className="flex items-end justify-end gap-2 flex-wrap">
                 <Button variant="secondary" onClick={() => setMode("initial")}>Voltar</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!calendarRef.current) return;
+                    await exportAttendanceToPDF(calendarRef.current, foundStudent, presencas, faltas);
+                    toast({
+                      title: "PDF gerado!",
+                      description: "O arquivo foi exportado. Confira seus downloads.",
+                    });
+                  }}
+                >
+                  Exportar para PDF
+                </Button>
               </div>
             </div>
-            <div>
+            <div className="mb-2">
               <h4 className="font-medium mb-2">Calendário de Frequência</h4>
+              <div className="mb-2 text-[15px]">
+                <b>Presenças:</b> <span className="text-green-600">{presencas}</span> &nbsp;
+                <b>Faltas:</b> <span className="text-red-600">{faltas}</span> &nbsp;
+                <b>Total de dias:</b> {total}
+              </div>
               {renderAttendanceCalendar(
                 foundStudent,
                 attendanceDraft,
