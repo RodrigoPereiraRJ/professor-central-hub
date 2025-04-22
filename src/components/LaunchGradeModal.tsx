@@ -31,38 +31,110 @@ const LaunchGradeModal: React.FC<LaunchGradeModalProps> = ({ open, onClose }) =>
   const [success, setSuccess] = useState<string | null>(null);
 
   const findStudentByMatricula = (registration: string) => {
+    console.log("Buscando aluno com matrícula:", registration);
+    
+    // Tentar buscar em "students"
     const storedStudents = localStorage.getItem("students");
     if (storedStudents) {
-      const students: Student[] = JSON.parse(storedStudents);
-      return students.find((s) => s.registration === registration);
+      try {
+        const students: Student[] = JSON.parse(storedStudents);
+        console.log("Alunos em 'students':", students);
+        const found = students.find((s) => s.registration === registration);
+        if (found) {
+          console.log("Aluno encontrado em 'students':", found);
+          return found;
+        }
+      } catch (e) {
+        console.error("Erro ao parsear 'students':", e);
+      }
     }
+    
+    // Tentar buscar em "alunosDashboard" como fallback
+    const alunosDashboard = localStorage.getItem("alunosDashboard");
+    if (alunosDashboard) {
+      try {
+        const students = JSON.parse(alunosDashboard);
+        console.log("Alunos em 'alunosDashboard':", students);
+        const found = students.find((s: any) => s.registration === registration);
+        if (found) {
+          console.log("Aluno encontrado em 'alunosDashboard':", found);
+          // Converter para o formato esperado de Student
+          return {
+            id: found.id || String(Date.now()),
+            name: found.name,
+            registration: found.registration,
+            class: found.class,
+            school: found.school,
+            presenceDays: found.presenceDays || 0,
+            absenceDays: found.absenceDays || 0,
+            grade: found.grade
+          };
+        }
+      } catch (e) {
+        console.error("Erro ao parsear 'alunosDashboard':", e);
+      }
+    }
+    
+    console.log("Nenhum aluno encontrado com a matrícula:", registration);
     return null;
   };
 
   const handleSearch = () => {
     setSuccess(null);
     setError(null);
+    
+    if (!matricula.trim()) {
+      setError("Por favor, informe uma matrícula.");
+      return;
+    }
+    
     const found = findStudentByMatricula(matricula.trim());
     if (found) {
       setStudent(found);
       setGrade(found.grade ?? "");
     } else {
       setStudent(null);
-      setError("Aluno não encontrado.");
+      setError("Aluno não encontrado com a matrícula informada.");
     }
   };
 
   const handleSave = () => {
     if (!student || grade === "") return;
-    const storedStudents = localStorage.getItem("students");
-    if (storedStudents) {
-      let students: Student[] = JSON.parse(storedStudents);
-      students = students.map((s) =>
-        s.id === student.id ? { ...s, grade: typeof grade === "string" ? Number(grade) : grade } : s
-      );
-      localStorage.setItem("students", JSON.stringify(students));
-      setSuccess("Nota lançada com sucesso!");
-      setStudent({ ...student, grade: typeof grade === "string" ? Number(grade) : grade });
+    
+    // Salvar em ambos os locais de armazenamento para garantir
+    saveStudentGrade("students", student, grade);
+    saveStudentGrade("alunosDashboard", student, grade);
+    
+    setSuccess("Nota lançada com sucesso!");
+    setStudent({ ...student, grade: typeof grade === "string" ? Number(grade) : grade });
+  };
+  
+  const saveStudentGrade = (storageKey: string, student: Student, grade: number | string) => {
+    const storedData = localStorage.getItem(storageKey);
+    if (!storedData) return;
+    
+    try {
+      let students = JSON.parse(storedData);
+      
+      // Verificar se é um array
+      if (Array.isArray(students)) {
+        students = students.map((s: any) => {
+          // Verificar se é o mesmo aluno pela matrícula ou ID
+          if ((s.registration && s.registration === student.registration) || 
+              (s.id && s.id === student.id)) {
+            return { 
+              ...s, 
+              grade: typeof grade === "string" ? Number(grade) : grade 
+            };
+          }
+          return s;
+        });
+        
+        localStorage.setItem(storageKey, JSON.stringify(students));
+        console.log(`Nota salva em '${storageKey}'`);
+      }
+    } catch (e) {
+      console.error(`Erro ao salvar nota em '${storageKey}':`, e);
     }
   };
 

@@ -4,6 +4,17 @@ import DashboardCard from './ui/DashboardCard';
 import { Users, BookOpen } from "lucide-react";
 import { Badge } from "./ui/badge";
 
+export interface ClassData {
+  id: string;
+  name: string;
+  subject: string;
+  period: string;
+  students: number;
+  gradesPercentage: number;
+  attendancePercentage: number;
+  hasPendingActivities: boolean;
+}
+
 interface Student {
   id: string;
   name: string;
@@ -21,22 +32,61 @@ const ClassOverview = () => {
   const [classStats, setClassStats] = useState<ClassStats[]>([]);
 
   useEffect(() => {
-    const storedStudents = localStorage.getItem("students");
-    if (storedStudents) {
-      const parsed: Student[] = JSON.parse(storedStudents);
+    console.log("ClassOverview - Buscando alunos...");
+    
+    // Tenta buscar do localStorage usando diferentes chaves
+    const tryGetStudents = () => {
+      // Verificar primeiro em "students"
+      const storedStudents = localStorage.getItem("students");
+      if (storedStudents) {
+        try {
+          const parsed: Student[] = JSON.parse(storedStudents);
+          console.log("ClassOverview - Alunos encontrados em 'students':", parsed);
+          return parsed;
+        } catch (e) {
+          console.error("Erro ao parsear 'students':", e);
+        }
+      }
+      
+      // Verificar em "alunosDashboard" como fallback
+      const alunosDashboard = localStorage.getItem("alunosDashboard");
+      if (alunosDashboard) {
+        try {
+          const parsed = JSON.parse(alunosDashboard);
+          console.log("ClassOverview - Alunos encontrados em 'alunosDashboard':", parsed);
+          return parsed;
+        } catch (e) {
+          console.error("Erro ao parsear 'alunosDashboard':", e);
+        }
+      }
+      
+      console.log("ClassOverview - Nenhum aluno encontrado no localStorage");
+      return [];
+    };
+
+    const students = tryGetStudents();
+    
+    if (students && students.length > 0) {
       // Agrupar por turma
-      const grouped = parsed.reduce<Record<string, string[]>>((acc, student) => {
-        if (!acc[student.class]) acc[student.class] = [];
-        acc[student.class].push(student.registration);
+      const grouped = students.reduce<Record<string, string[]>>((acc, student) => {
+        const className = student.class || "Sem Turma";
+        if (!acc[className]) acc[className] = [];
+        acc[className].push(student.registration);
         return acc;
       }, {});
+      
       // Montar stats
       const stats: ClassStats[] = Object.entries(grouped).map(([className, regs]) => ({
         className,
         totalStudents: regs.length,
         registrations: regs,
       }));
+      
+      console.log("ClassOverview - Estatísticas geradas:", stats);
       setClassStats(stats);
+    } else {
+      console.log("ClassOverview - Nenhum aluno para gerar estatísticas");
+      setClassStats([]);
     }
   }, []);
 

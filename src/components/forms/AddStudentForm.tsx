@@ -33,9 +33,13 @@ export function AddStudentForm({ onAddStudent }: AddStudentFormProps) {
   });
 
   function onSubmit(data: StudentFormValues) {
-    const newStudent = {
+    const newStudent: Student = {
       id: Date.now().toString(),
-      ...data,
+      name: data.name,  // Garantir que name é fornecido
+      registration: data.registration,  // Garantir que registration é fornecido
+      class: data.class,  // Garantir que class é fornecido
+      presenceDays: 0,
+      absenceDays: 0,
       attendance: 0,
     };
     
@@ -48,6 +52,22 @@ export function AddStudentForm({ onAddStudent }: AddStudentFormProps) {
       const students = storedStudents ? JSON.parse(storedStudents) : [];
       students.push(newStudent);
       localStorage.setItem('students', JSON.stringify(students));
+      
+      // Também salvar em alunosDashboard para consistência
+      try {
+        const alunosDashboard = localStorage.getItem('alunosDashboard');
+        const alunos = alunosDashboard ? JSON.parse(alunosDashboard) : [];
+        alunos.push({
+          id: newStudent.id,
+          name: newStudent.name,
+          registration: newStudent.registration,
+          class: newStudent.class,
+          teachingDays: []
+        });
+        localStorage.setItem('alunosDashboard', JSON.stringify(alunos));
+      } catch (e) {
+        console.error("Erro ao salvar em alunosDashboard:", e);
+      }
     }
     
     toast({

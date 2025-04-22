@@ -20,10 +20,53 @@ const StudentPerformance = () => {
   const [students, setStudents] = useState<Student[]>([]);
 
   useEffect(() => {
-    const storedStudents = localStorage.getItem("students");
-    if (storedStudents) {
-      const parsed = JSON.parse(storedStudents);
-      setStudents(parsed);
+    console.log("StudentPerformance - Buscando alunos...");
+    
+    // Tenta buscar do localStorage usando diferentes chaves
+    const tryGetStudents = () => {
+      // Verificar primeiro em "students"
+      const storedStudents = localStorage.getItem("students");
+      if (storedStudents) {
+        try {
+          const parsed: Student[] = JSON.parse(storedStudents);
+          console.log("StudentPerformance - Alunos encontrados em 'students':", parsed);
+          return parsed;
+        } catch (e) {
+          console.error("Erro ao parsear 'students':", e);
+        }
+      }
+      
+      // Verificar em "alunosDashboard" como fallback
+      const alunosDashboard = localStorage.getItem("alunosDashboard");
+      if (alunosDashboard) {
+        try {
+          const parsed = JSON.parse(alunosDashboard);
+          console.log("StudentPerformance - Alunos encontrados em 'alunosDashboard':", parsed);
+          return parsed.map((stu: any) => ({
+            id: stu.id || String(Date.now()),
+            name: stu.name || "",
+            registration: stu.registration || "",
+            class: stu.class || "",
+            school: stu.school || "",
+            presenceDays: stu.presenceDays || 0,
+            absenceDays: stu.absenceDays || 0
+          }));
+        } catch (e) {
+          console.error("Erro ao parsear 'alunosDashboard':", e);
+        }
+      }
+      
+      console.log("StudentPerformance - Nenhum aluno encontrado no localStorage");
+      return [];
+    };
+
+    const students = tryGetStudents();
+    
+    if (students && students.length > 0) {
+      setStudents(students);
+    } else {
+      console.log("StudentPerformance - Nenhum aluno para exibir");
+      setStudents([]);
     }
   }, []);
 
