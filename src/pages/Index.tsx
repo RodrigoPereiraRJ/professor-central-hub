@@ -9,6 +9,7 @@ import RecentSubmissions from '@/components/RecentSubmissions';
 import SchoolAnnouncements from '@/components/SchoolAnnouncements';
 import ActivityHistory from '@/components/ActivityHistory';
 import AttendanceRegistration from '@/components/AttendanceRegistration';
+import StudentAttendanceRegistration from '@/components/StudentAttendanceRegistration';
 
 const Index = () => {
   return (
@@ -31,9 +32,14 @@ const Index = () => {
             <ClassOverview />
             <StudentPerformance />
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* NOVO COMPONENTE DE CADASTRO DE ALUNO COM FREQUÊNCIA */}
+            <StudentAttendanceRegistration />
+            <AttendanceRegistration />
+          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <AttendanceRegistration />
             <SchoolAnnouncements />
           </div>
           
