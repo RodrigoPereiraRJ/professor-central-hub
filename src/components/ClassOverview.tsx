@@ -28,66 +28,94 @@ interface ClassStats {
   registrations: string[];
 }
 
+// Criar um evento customizado para atualizações de alunos
+export const STUDENT_UPDATED_EVENT = "studentDataUpdated";
+
+// Função auxiliar para emitir o evento de atualização
+export const notifyStudentDataUpdated = () => {
+  window.dispatchEvent(new CustomEvent(STUDENT_UPDATED_EVENT));
+  console.log("Evento de atualização de alunos emitido");
+};
+
 const ClassOverview = () => {
   const [classStats, setClassStats] = useState<ClassStats[]>([]);
 
   useEffect(() => {
     console.log("ClassOverview - Buscando alunos...");
     
-    // Tenta buscar do localStorage usando diferentes chaves
-    const tryGetStudents = () => {
-      // Verificar primeiro em "students"
-      const storedStudents = localStorage.getItem("students");
-      if (storedStudents) {
-        try {
-          const parsed: Student[] = JSON.parse(storedStudents);
-          console.log("ClassOverview - Alunos encontrados em 'students':", parsed);
-          return parsed;
-        } catch (e) {
-          console.error("Erro ao parsear 'students':", e);
+    // Função para carregar os dados dos alunos
+    const loadStudentData = () => {
+      // Tenta buscar do localStorage usando diferentes chaves
+      const tryGetStudents = () => {
+        // Verificar primeiro em "students"
+        const storedStudents = localStorage.getItem("students");
+        if (storedStudents) {
+          try {
+            const parsed: Student[] = JSON.parse(storedStudents);
+            console.log("ClassOverview - Alunos encontrados em 'students':", parsed);
+            return parsed;
+          } catch (e) {
+            console.error("Erro ao parsear 'students':", e);
+          }
         }
-      }
-      
-      // Verificar em "alunosDashboard" como fallback
-      const alunosDashboard = localStorage.getItem("alunosDashboard");
-      if (alunosDashboard) {
-        try {
-          const parsed = JSON.parse(alunosDashboard);
-          console.log("ClassOverview - Alunos encontrados em 'alunosDashboard':", parsed);
-          return parsed;
-        } catch (e) {
-          console.error("Erro ao parsear 'alunosDashboard':", e);
+        
+        // Verificar em "alunosDashboard" como fallback
+        const alunosDashboard = localStorage.getItem("alunosDashboard");
+        if (alunosDashboard) {
+          try {
+            const parsed = JSON.parse(alunosDashboard);
+            console.log("ClassOverview - Alunos encontrados em 'alunosDashboard':", parsed);
+            return parsed;
+          } catch (e) {
+            console.error("Erro ao parsear 'alunosDashboard':", e);
+          }
         }
-      }
+        
+        console.log("ClassOverview - Nenhum aluno encontrado no localStorage");
+        return [];
+      };
+
+      const students = tryGetStudents();
       
-      console.log("ClassOverview - Nenhum aluno encontrado no localStorage");
-      return [];
+      if (students && students.length > 0) {
+        // Agrupar por turma
+        const grouped = students.reduce<Record<string, string[]>>((acc, student) => {
+          const className = student.class || "Sem Turma";
+          if (!acc[className]) acc[className] = [];
+          acc[className].push(student.registration);
+          return acc;
+        }, {});
+        
+        // Montar stats
+        const stats: ClassStats[] = Object.entries(grouped).map(([className, regs]) => ({
+          className,
+          totalStudents: regs.length,
+          registrations: regs,
+        }));
+        
+        console.log("ClassOverview - Estatísticas geradas:", stats);
+        setClassStats(stats);
+      } else {
+        console.log("ClassOverview - Nenhum aluno para gerar estatísticas");
+        setClassStats([]);
+      }
     };
 
-    const students = tryGetStudents();
-    
-    if (students && students.length > 0) {
-      // Agrupar por turma
-      const grouped = students.reduce<Record<string, string[]>>((acc, student) => {
-        const className = student.class || "Sem Turma";
-        if (!acc[className]) acc[className] = [];
-        acc[className].push(student.registration);
-        return acc;
-      }, {});
-      
-      // Montar stats
-      const stats: ClassStats[] = Object.entries(grouped).map(([className, regs]) => ({
-        className,
-        totalStudents: regs.length,
-        registrations: regs,
-      }));
-      
-      console.log("ClassOverview - Estatísticas geradas:", stats);
-      setClassStats(stats);
-    } else {
-      console.log("ClassOverview - Nenhum aluno para gerar estatísticas");
-      setClassStats([]);
-    }
+    // Carrega os dados inicialmente
+    loadStudentData();
+
+    // Adiciona um event listener para o evento de atualização
+    const handleStudentUpdate = () => {
+      console.log("ClassOverview - Evento de atualização detectado, recarregando dados...");
+      loadStudentData();
+    };
+
+    window.addEventListener(STUDENT_UPDATED_EVENT, handleStudentUpdate);
+
+    // Cleanup do event listener quando o componente for desmontado
+    return () => {
+      window.removeEventListener(STUDENT_UPDATED_EVENT, handleStudentUpdate);
+    };
   }, []);
 
   return (

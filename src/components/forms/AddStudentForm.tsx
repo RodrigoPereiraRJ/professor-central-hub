@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
 import { Student } from '@/components/StudentPerformance';
+import { notifyStudentDataUpdated } from '@/components/ClassOverview';
 
 const studentFormSchema = z.object({
   name: z.string().min(1, 'Nome do aluno é obrigatório'),
@@ -35,12 +36,12 @@ export function AddStudentForm({ onAddStudent }: AddStudentFormProps) {
   function onSubmit(data: StudentFormValues) {
     const newStudent: Student = {
       id: Date.now().toString(),
-      name: data.name,  // Garantir que name é fornecido
-      registration: data.registration,  // Garantir que registration é fornecido
-      class: data.class,  // Garantir que class é fornecido
+      name: data.name,
+      registration: data.registration,
+      class: data.class,
       presenceDays: 0,
       absenceDays: 0,
-      attendance: 0,
+      attendance: [],
     };
     
     // Se houver callback, chama-o
@@ -62,9 +63,14 @@ export function AddStudentForm({ onAddStudent }: AddStudentFormProps) {
           name: newStudent.name,
           registration: newStudent.registration,
           class: newStudent.class,
-          teachingDays: []
+          school: "",
+          teachingDays: [],
+          attendance: []
         });
         localStorage.setItem('alunosDashboard', JSON.stringify(alunos));
+        
+        // Emitir evento de atualização para atualizar outros componentes
+        notifyStudentDataUpdated();
       } catch (e) {
         console.error("Erro ao salvar em alunosDashboard:", e);
       }

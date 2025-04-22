@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import DashboardCard from './ui/DashboardCard';
 import { Users } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { STUDENT_UPDATED_EVENT } from "./ClassOverview";
 
 export interface Student {
   id: string;
@@ -14,6 +15,8 @@ export interface Student {
   absenceDays?: number;
   attendance?: number;
   grade?: number;
+  teachingDays?: number[];
+  attendance?: Array<{ date: string; type: string }>;
 }
 
 const StudentPerformance = () => {
@@ -22,52 +25,91 @@ const StudentPerformance = () => {
   useEffect(() => {
     console.log("StudentPerformance - Buscando alunos...");
     
-    // Tenta buscar do localStorage usando diferentes chaves
-    const tryGetStudents = () => {
-      // Verificar primeiro em "students"
-      const storedStudents = localStorage.getItem("students");
-      if (storedStudents) {
-        try {
-          const parsed: Student[] = JSON.parse(storedStudents);
-          console.log("StudentPerformance - Alunos encontrados em 'students':", parsed);
-          return parsed;
-        } catch (e) {
-          console.error("Erro ao parsear 'students':", e);
+    // Função para carregar os dados dos alunos
+    const loadStudentData = () => {
+      // Tenta buscar do localStorage usando diferentes chaves
+      const tryGetStudents = () => {
+        // Verificar primeiro em "students"
+        const storedStudents = localStorage.getItem("students");
+        if (storedStudents) {
+          try {
+            const parsed: Student[] = JSON.parse(storedStudents);
+            console.log("StudentPerformance - Alunos encontrados em 'students':", parsed);
+            return parsed;
+          } catch (e) {
+            console.error("Erro ao parsear 'students':", e);
+          }
         }
-      }
-      
-      // Verificar em "alunosDashboard" como fallback
-      const alunosDashboard = localStorage.getItem("alunosDashboard");
-      if (alunosDashboard) {
-        try {
-          const parsed = JSON.parse(alunosDashboard);
-          console.log("StudentPerformance - Alunos encontrados em 'alunosDashboard':", parsed);
-          return parsed.map((stu: any) => ({
-            id: stu.id || String(Date.now()),
-            name: stu.name || "",
-            registration: stu.registration || "",
-            class: stu.class || "",
-            school: stu.school || "",
-            presenceDays: stu.presenceDays || 0,
-            absenceDays: stu.absenceDays || 0
-          }));
-        } catch (e) {
-          console.error("Erro ao parsear 'alunosDashboard':", e);
+        
+        // Verificar em "alunosDashboard" como fallback
+        const alunosDashboard = localStorage.getItem("alunosDashboard");
+        if (alunosDashboard) {
+          try {
+            const parsed = JSON.parse(alunosDashboard);
+            console.log("StudentPerformance - Alunos encontrados em 'alunosDashboard':", parsed);
+            
+            // Processamos os dados para calcular presença e ausência
+            return parsed.map((stu: any) => {
+              // Calcula dias de presença e ausência com base no array de attendance
+              let presenceDays = 0;
+              let absenceDays = 0;
+              
+              if (Array.isArray(stu.attendance)) {
+                stu.attendance.forEach((record: { type: string }) => {
+                  if (record.type === "presenca") {
+                    presenceDays++;
+                  } else if (record.type === "falta") {
+                    absenceDays++;
+                  }
+                });
+              }
+              
+              return {
+                id: stu.id || String(Date.now()),
+                name: stu.name || "",
+                registration: stu.registration || "",
+                class: stu.class || "",
+                school: stu.school || "",
+                presenceDays,
+                absenceDays,
+                attendance: stu.attendance || []
+              };
+            });
+          } catch (e) {
+            console.error("Erro ao parsear 'alunosDashboard':", e);
+          }
         }
-      }
+        
+        console.log("StudentPerformance - Nenhum aluno encontrado no localStorage");
+        return [];
+      };
+
+      const students = tryGetStudents();
       
-      console.log("StudentPerformance - Nenhum aluno encontrado no localStorage");
-      return [];
+      if (students && students.length > 0) {
+        console.log("StudentPerformance - Dados processados:", students);
+        setStudents(students);
+      } else {
+        console.log("StudentPerformance - Nenhum aluno para exibir");
+        setStudents([]);
+      }
     };
 
-    const students = tryGetStudents();
-    
-    if (students && students.length > 0) {
-      setStudents(students);
-    } else {
-      console.log("StudentPerformance - Nenhum aluno para exibir");
-      setStudents([]);
-    }
+    // Carrega os dados inicialmente
+    loadStudentData();
+
+    // Adiciona um event listener para o evento de atualização
+    const handleStudentUpdate = () => {
+      console.log("StudentPerformance - Evento de atualização detectado, recarregando dados...");
+      loadStudentData();
+    };
+
+    window.addEventListener(STUDENT_UPDATED_EVENT, handleStudentUpdate);
+
+    // Cleanup do event listener quando o componente for desmontado
+    return () => {
+      window.removeEventListener(STUDENT_UPDATED_EVENT, handleStudentUpdate);
+    };
   }, []);
 
   return (

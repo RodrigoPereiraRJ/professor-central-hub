@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import DashboardCard from "./ui/DashboardCard";
+import { STUDENT_UPDATED_EVENT } from "./ClassOverview";
 
 interface RegisteredStudent {
   id: string;
@@ -23,14 +24,33 @@ const AllStudentsList: React.FC = () => {
   const [students, setStudents] = useState<RegisteredStudent[]>([]);
 
   useEffect(() => {
-    // Busca pelo storage dedicado cadastrado no fluxo de frequência
-    const raw = localStorage.getItem("alunosDashboard");
-    if (raw) {
-      setStudents(JSON.parse(raw));
-    } else {
-      // Fallback caso não haja alunos cadastrados
-      setStudents([]);
-    }
+    // Função para carregar os dados dos alunos
+    const loadStudentData = () => {
+      // Busca pelo storage dedicado cadastrado no fluxo de frequência
+      const raw = localStorage.getItem("alunosDashboard");
+      if (raw) {
+        setStudents(JSON.parse(raw));
+      } else {
+        // Fallback caso não haja alunos cadastrados
+        setStudents([]);
+      }
+    };
+
+    // Carrega os dados inicialmente
+    loadStudentData();
+
+    // Adiciona um event listener para o evento de atualização
+    const handleStudentUpdate = () => {
+      console.log("AllStudentsList - Evento de atualização detectado, recarregando dados...");
+      loadStudentData();
+    };
+
+    window.addEventListener(STUDENT_UPDATED_EVENT, handleStudentUpdate);
+
+    // Cleanup do event listener quando o componente for desmontado
+    return () => {
+      window.removeEventListener(STUDENT_UPDATED_EVENT, handleStudentUpdate);
+    };
   }, []);
 
   return (
